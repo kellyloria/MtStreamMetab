@@ -19,12 +19,9 @@ library(dataRetrieval)
 library(scales)
 library(StanHeaders)
 
-install.packages("remotes")
-remotes::install_github("appling/unitted")
+#  install.packages("remotes")
+#  remotes::install_github("appling/unitted")
 
-
-
-#remotes::install_github('appling/unitted', force = TRUE)
 #remotes::install_github("USGS-R/streamMetabolizer", force = TRUE)
 
 ## ---------------------------
