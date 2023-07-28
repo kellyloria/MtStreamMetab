@@ -32,15 +32,16 @@ dat$discharge <- c(dat$dischargeCFS *  35.3147)
 ###
 ## Depth rating curve: 
 
-date<- as.POSIXct(c("2022-03-18 17:00:00",
-                    "2022-03-25 14:00:00",
+date<- as.POSIXct(c(
                     "2021-06-06 10:00:00",
-                    "2021-06-09 13:00:00",
-                    "2021-07-28 18:00:00"), 
+                    "2021-07-28 18:00:00",
+                    "2022-05-26 18:00:00",
+                    "2022-08-24 18:00:00",
+                    "2022-10-11 18:00:00"), 
                   tz="America/Los_Angeles",
                   format = c("%Y-%m-%d %H:%M:%OS"))
 
-depth <- c(0.236166667, 1.254806,1.263684,0.1529198, 0.09045016)
+depth <- c(0.153, 0.090, 0.091, 0.151, 0.082)
 
 mophDF <- data.frame(date,depth)
 
@@ -54,10 +55,10 @@ depth.lm<- glm(depth~gageHm, data=DRC)
 summary(depth.lm)
 
 #BWC_Q1$depth <- calc_depth(Q=u(BWC_Q1$discharge, "m^3 s^-1"), f=u(0.36))
-DRC$est.depth<- ((DRC$gageHm) * summary(depth.lm)$coef[2,1])
+DRC$est.depth<- ((DRC$gageHm) * summary(depth.lm)$coef[2,1])* (-1)
 hist(DRC$est.depth) 
 
-dat$depth <- ((dat$gageHF * 0.3048) * summary(depth.lm)$coef[2,1])
+dat$depth <- ((dat$gageHF * 0.3048) * summary(depth.lm)$coef[2,1])*(-1)
 
 # calc light example
 latitude <- c(39.10740708)
