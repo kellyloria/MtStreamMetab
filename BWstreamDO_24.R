@@ -1,4 +1,5 @@
 # Blackwood stream DO
+# only updated lower 2024-01-27
 
 #=========== Preliminaries
 rm(list=ls())
@@ -125,153 +126,41 @@ ggplot(data = wtr.ts,aes(x=datetime,y=wtr)) + geom_line() +
   geom_line(data=wtr.ts.clean,aes(x=datetime,y=wtr),col="red")
 wtr.ts.avg <- aggregate.data(data = wtr.ts.clean,time.step = 15)
 
-# 
-# 
-# # add in climate:
-# climate <- read_csv("/Users/kellyloria/Documents/UNR/MSMmetab/D9413.2023-09-01.csv", skip=) %>% 
-#   dplyr::rename(datetime='Date_Time',
-#                 Atemp='air_temp_set_1',
-#                 wspeed='wind_speed_set_1',
-#                 baro='pressure_set_1d')%>%
-#   mutate(datetime = as_datetime(datetime, "America/Los_Angeles")) %>% 
-#   mutate(year=year(datetime),
-#          yday=yday(datetime),
-#          hour=hour(datetime)) %>%
-#   dplyr::select(datetime,
-#          Atemp,
-#          baro,
-#          wspeed,
-#          hour,
-#          yday) # datetime in UTC
+### climate data ###
+# 2. merge in weather station data:
+baro_dat <- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/climate/stream_NLDAS_baro.csv")
 
-climate$datetime <- (as.POSIXct(round_date(
-  as.POSIXct(climate$datetime, format="%Y-%m-%d %H:%M:%S"), unit="5 minutes")))
+baro_datQ <- baro_dat %>%
+  mutate(datetime = as.POSIXct(datetime, format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC")) %>%
+  with_tz(tz = "America/Los_Angeles") %>%
+  select(site, datetime, baro_Pa)
 
-tempcheck <- subset(climate, 
-                    datetime > '2021-09-16 00:00:00' & datetime < '2021-09-17 :00:00') # sensor quality minimum threshold
-
-qplot(datetime, Atemp, data = tempcheck, geom="point") +
-  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
-  scale_x_datetime(breaks = date_breaks("1 hours")) +
-  geom_vline(xintercept = as.POSIXct(c("2021-09-16 00:00:00", 
-                                       "2021-09-16 12:00:00", 
-                                       "2021-09-16 24:00:00")), color = "yellow")
-
-baro.ts <- climate %>%
-  dplyr::select(datetime,
-         baro) #
-
-ggplot(data = baro.ts, aes(x=datetime,y=baro)) + geom_line()
-describe.ts(baro.ts)
-baro.ts.clean <- trim.outliers(baro.ts,width = 10,sd.dev = 5) 
-ggplot(data = baro.ts,aes(x=datetime,y=baro)) + geom_line() + 
-  geom_line(data=baro.ts.clean,aes(x=datetime,y=baro),col="red")
-baro.ts.avg <- aggregate.data(data = baro.ts.clean,time.step = 15)
-
-###
-clim2 <- read_csv("/Users/kellyloria/Documents/UNR/MSMmetab/HMDC1.2023-09-01.csv") %>% 
-  dplyr::rename(datetime='Date_Time',
-                Atemp='air_temp_set_1',
-                par='solar_radiation_set_1',
-                wspeed='wind_speed_set_1')%>%
- # mutate(datetime = as.POSIXct((datetime), format ="%Y-%m-%d %H:%M:%S")) %>%
-  mutate(datetime = as_datetime(datetime, "America/Los_Angeles")) %>% 
-  mutate(year=year(datetime),
-         yday=yday(datetime),
-         hour=hour(datetime)) %>%
-  dplyr::select(datetime,
-         Atemp,
-         par,
-         wspeed,
-         hour,
-         yday) # datetime in UTC
-
-#clim2$datetime <- clim2$datetime - c(60*60*8)
-## Check the dates:
-tempcheck <- subset(clim2, 
-                    datetime > '2021-09-16 00:00:00' & datetime < '2021-09-17 :00:00') # sensor quality minimum threshold
-
-qplot(datetime, par, data = tempcheck, geom="point") +
-  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
-  scale_x_datetime(breaks = date_breaks("1 hours")) +
-  geom_vline(xintercept = as.POSIXct(c("2021-09-16 00:00:00", 
-                                       "2021-09-16 12:00:00", 
-                                       "2021-09-16 24:00:00")), color = "yellow")
-
-
-clim2 <- clim2 %>%
-  dplyr::select(datetime,
-         par) #
-
-clim2$datetime <- (as.POSIXct(round_date(
-  as.POSIXct(clim2$datetime, format="%Y-%m-%d %H:%M:%S"), unit="5 minutes")))
-
-
-
-ggplot(data = clim2,aes(x=datetime,y=par)) + geom_line()
-describe.ts(clim2)
-par.ts.clean <- trim.outliers(clim2,width = 10,sd.dev = 5) 
-ggplot(data = clim2,aes(x=datetime,y=par)) + geom_line() + 
-  geom_line(data=par.ts.clean,aes(x=datetime,y=par),col="red")
-par.ts.avg <- aggregate.data(data = par.ts.clean,time.step = 15)
-
-
-### infill ##
-###
-clim3 <- read_csv("/Users/kellyloria/Documents/UNR/MSMmetab/F9917.2023-09-01.csv") %>% 
-  dplyr::rename(datetime='Date_Time',
-                Atemp='air_temp_set_1',
-                par='solar_radiation_set_1',
-                baro='pressure_set_1d')%>%
-  # mutate(datetime = as.POSIXct((datetime), format ="%Y-%m-%d %H:%M:%S")) %>%
-  mutate(datetime = as_datetime(datetime, "America/Los_Angeles")) %>% 
-  mutate(year=year(datetime),
-         yday=yday(datetime),
-         hour=hour(datetime)) %>%
-  dplyr::select(datetime,
-                Atemp,
-                par,
-                baro,
-                hour,
-                yday) # datetime in UTC
-
-#clim2$datetime <- clim2$datetime - c(60*60*8)
-## Check the dates:
-tempcheck <- subset(clim3, 
-                    datetime > '2023-06-16 00:00:00' & datetime < '2023-06-17 :00:00') # sensor quality minimum threshold
-
-qplot(datetime, par, data = tempcheck, geom="point") +
-  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
-  scale_x_datetime(breaks = date_breaks("1 hours")) +
-  geom_vline(xintercept = as.POSIXct(c("2023-06-16 00:00:00", 
-                                       "2023-06-16 12:00:00", 
-                                       "2023-06-16 24:00:00")), color = "yellow")
-
-clim3$datetime <- (as.POSIXct(round_date(
-  as.POSIXct(clim3$datetime, format="%Y-%m-%d %H:%M:%S"), unit="5 minutes")))
-
-clim3 <- clim3 %>%
-  dplyr::select(datetime,
-                par, 
-                baro) #
-
-ggplot(data = clim3,aes(x=datetime,y=par)) + geom_line()
-describe.ts(clim2)
-par.ts.clean <- trim.outliers(clim2,width = 10,sd.dev = 5) 
-ggplot(data = clim2,aes(x=datetime,y=par)) + geom_line() + 
-  geom_line(data=par.ts.clean,aes(x=datetime,y=par),col="red")
-par.ts.avg <- aggregate.data(data = par.ts.clean,time.step = 15)
-
-
-
+light_dat <- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/climate/stream_NLDAS_light.csv")
+light_datQ <- light_dat %>%
+  mutate(datetime = as.POSIXct(datetime, format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC")) %>%
+  with_tz(tz = "America/Los_Angeles") %>%
+  dplyr::select(site, datetime, light)
 
 # 
-dat <- do.ts.clean%>% #note in this case I am not using the drift correction -KL
-  full_join(wtr.ts.clean) %>% 
-  full_join(clim2) %>%
-  full_join(baro.ts.clean) 
+dat2 <- do.ts.avg  %>% full_join(wtr.ts.avg, by = "datetime")
+dat2$site <- "BWL"
 
-summary(dat)
+dat_Q <- dat2 %>%
+  left_join(light_datQ, by = c("datetime", "site")) %>%
+  left_join(baro_datQ, by = c("datetime", "site")) 
+
+# infil missing values
+dat_Q1 <- dat_Q %>%
+  fill(light, .direction = "down")%>%
+  fill(baro_Pa,.direction = "down")%>% 
+  mutate(baro= (baro_Pa*0.01)) # %>% dplyr::ungroup()
+
+summary(dat_Q1)
+
+dat_Q1 <- dat_Q1 %>%
+  fill(light, .direction = "up")%>%
+  fill(baro,.direction = "up")
+
 
 ## Add in flow
 library(dataRetrieval)
@@ -279,7 +168,7 @@ library(dataRetrieval)
 siteNo <- "10336660"
 pCode <- c("00060", "00065")
 start.date <- "2021-04-29"
-end.date <- "2023-09-01"
+end.date <- "2024-01-01"
 
 BWflow <- readNWISuv(siteNumbers = siteNo,
                      parameterCd = pCode,
@@ -291,152 +180,32 @@ flow.ts <- BWflow %>%
   mutate(datetime = as.POSIXct((datetime), format ="%Y-%m-%d %H:%M:%S"))%>%
   dplyr::select("datetime", "dischargeCFS", "gageHF")
 
-flow.ts$datetime <- (as.POSIXct(round_date(
-  as.POSIXct(flow.ts$datetime, format="%Y-%m-%d %H:%M:%S"), unit="5 minutes")))
+dat_Q2 <-  dat_Q1 %>%
+  left_join(flow.ts, by = c("datetime")) 
 
-datv1 <- dat %>%
-  full_join(flow.ts) 
+summary(dat_Q3)
 
-dat_unique <- datv1 %>%
-  group_by(datetime) %>%
-  summarize(do.obs = mean(do.obs, na.rm=T),
-            wtr = mean(wtr, na.rm=T),
-            par = mean(par, na.rm=T),
-            baro = mean(baro, na.rm=T),
-            dischargeCFS = mean(dischargeCFS, na.rm=T),
-            gageHF = mean(gageHF, na.rm=T))
+# infil missing values
+dat_Q3 <- dat_Q2 %>%
+  fill(dischargeCFS, .direction = "down")%>%
+  fill(gageHF,.direction = "down")
 
-dat1<- dat_unique[!is.na(dat_unique$do.obs), ]
-dat2<- dat1[!is.na(dat1$wtr), ]
-
-summary(dat2)
-
-
-# Calculate the rolling average and store it in 'gageM'
-dat2$gageM <- rollapply(dat2$gageHF, width = 10,
-                        FUN = function(x) mean(x, na.rm = TRUE), by = 1,
-                        by.column = TRUE, partial = TRUE, fill = NA, align = "center")
-# Loop through each row and fill missing 'gageHF' values with 'gageM'
-for (i in 1:nrow(dat2)) {
-  if (is.na(dat2$gageHF[i])) {
-    dat2$gageHF[i] <- dat2$gageM[i]
-  }
-}
-# Summary of the updated 'dat21_2' dataset
-summary(dat2)
-
-
-
-qplot(datetime, gageHF, data = dat2, geom="point") +
+qplot(datetime, light, data = dat_Q3, geom="point") +
   theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
   scale_x_datetime(breaks = date_breaks("1000 hours"))
 
-
-# Calculate the rolling average and store it in 'gageM'
-dat2$dischargeM <- rollapply(dat2$dischargeCFS, width = 10,
-                             FUN = function(x) mean(x, na.rm = TRUE), by = 1,
-                             by.column = TRUE, partial = TRUE, fill = NA, align = "center")
-# Loop through each row and fill missing 'gageHF' values with 'gageM'
-for (i in 1:nrow(dat2)) {
-  if (is.na(dat2$dischargeCFS[i])) {
-    dat2$dischargeCFS[i] <- dat2$dischargeM[i]
-  }
-}
-# Summary of the updated 'dat21_2' dataset
-summary(dat2)
-
-qplot(datetime, dischargeCFS, data = dat2, geom="point") +
-  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
-  scale_x_datetime(breaks = date_breaks("1000 hours"))
-
-# Calculate the rolling average and store it in 'gageM'
-dat2$baroM <- rollapply(dat2$baro, width = 10,
-                        FUN = function(x) mean(x, na.rm = TRUE), by = 1,
-                        by.column = TRUE, partial = TRUE, fill = NA, align = "center")
-# Loop through each row and fill missing 'gageHF' values with 'gageM'
-for (i in 1:nrow(dat2)) {
-  if (is.na(dat2$baro[i])) {
-    dat2$baro[i] <- dat2$baroM[i]
-  }
-}
-
-qplot(datetime, baro, data = dat2, geom="point") +
-  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
-  scale_x_datetime(breaks = date_breaks("1000 hours"))
-
-# Summary of the updated 'dat21_2' dataset
-summary(dat2)
-
-datsave<- dat2
-
-baro_infil <-left_join(clim3, climate, 
-                       by=c('datetime'))
-
-bar_reg <- lm(baro_infil$baro.x ~ baro_infil$baro.y, data=baro_infil)
-summary(bar_reg)
-
-baro_infil$baroM<- ((baro_infil$baro.x)) #* (summary(bar_reg)$coef[2,1]))
-hist(baro_infil$baroM) 
-
-for (i in 1:nrow(dat2)) {
-  if (is.na(dat2$baro[i])) {
-    dat2$baro[i] <- baro_infil$baro.x[i]
-  }
-}
-summary(dat2)
-
-qplot(datetime, baro, data = dat2, geom="point") +
-  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
-  scale_x_datetime(breaks = date_breaks("1000 hours"))
-
-# Calculate the rolling average and store it in 'gageM'
-dat2$parM <- rollapply(dat2$par, width = 100,
-                       FUN = function(x) mean(x, na.rm = TRUE), by = 1,
-                       by.column = TRUE, partial = TRUE, fill = NA, align = "center")
-# Loop through each row and fill missing 'gageHF' values with 'gageM'
-for (i in 1:nrow(dat2)) {
-  if (is.na(dat2$par[i])) {
-    dat2$par[i] <- dat2$parM[i]
-  }
-}
-
-par_infil <- clim3 %>%
-  full_join(clim2)
-
-par_infil <-left_join(clim3, clim2, 
-                      by=c('datetime'))
-
-par_reg <- lm(par_infil$par.x ~ par_infil$par.y, data=par_infil)
-summary(par_reg)
-
-par_infil$parM<- ((par_infil$par.x) * summary(par_reg)$coef[2,1])
-hist(par_infil$parM) 
-hist(par_infil$par.x)
-hist(par_infil$par.y)
-
-for (i in 1:nrow(dat2)) {
-  if (is.na(dat2$par[i])) {
-    dat2$par[i] <- par_infil$parM[i]
-  }
-}
-# Summary of the updated 'dat21_2' dataset
-summary(dat2)
-
-qplot(datetime, par, data = dat2, geom="point") +
-  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
-  scale_x_datetime(breaks = date_breaks("1000 hours"))
-
-dat3 <- dat2 %>%
-  dplyr::select(datetime,
+dat <- dat_Q3 %>%
+  dplyr::select(site,
+                datetime,
                 do.obs,
                 wtr,
-                par, 
-                baro,
+                light, 
+                baro_Pa,
                 dischargeCFS,
                 gageHF) #
 
 
-# write.csv(x = dat3, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/23_BWLInputs.csv", row.names = TRUE)
+# write.csv(x = dat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWLInputs.csv", row.names = TRUE)
 
 
 
