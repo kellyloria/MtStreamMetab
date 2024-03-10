@@ -16,18 +16,17 @@ library(dataRetrieval)
 # See what data you need:
 metab_inputs('bayes','data')
 
-dat<- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/CleanDat/22_GBLInputs.csv")
+dat<- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_GBLInputs.csv")
 summary(dat)
 
 dat <- dat %>%
   mutate(datetime = as_datetime(datetime, "America/Los_Angeles")) %>%
-  select("datetime","do.obs", "wtr","par", "baro", "dischargeCFS", "gageHF")
+  dplyr::select("datetime","do.obs", "wtr","light", "baro", "dischargeCFS", "gageHF")
 
 str(dat)
 
 # get all units in model form #
-dat$pressure_millibar <- c(dat$baro * 0.01)
-dat$discharge <- c(dat$dischargeCFS *  28.317)
+dat$discharge <- c(dat$dischargeCFS *  28.317) # did you need to cuber the flow
 
 ###
 ## Depth rating curve: 
@@ -38,7 +37,11 @@ date<- as.POSIXct(c("2022-01-21 17:00:00",
                     "2022-06-09 13:00:00",
                     "2022-06-23 13:00:00",
                     "2022-07-28 18:00:00",
-                    "2022-10-03 10:00:00"), 
+                    "2022-10-03 10:00:00",
+                    "2022-11-04 13:00:00",
+                    "2022-12-12 13:00:00",
+                    "2022-03-27 13:00:00"
+                    ), 
                   tz="America/Los_Angeles",
                   format = c("%Y-%m-%d %H:%M:%OS"))
 
@@ -48,7 +51,10 @@ depth <- c(0.1437662,
            0.1529198, 
            0.368,
            0.09045016,
-           0.066)
+           0.066, 
+           0.142, 
+           0.267,
+           0.166)
 
 mophDF <- data.frame(date,depth)
 
@@ -58,12 +64,16 @@ summary(DRC)
 DRC$gageHm <-c(DRC$gageHF *0.3048)
 
 # regression between reach depth and gage height
-depth.lm<- glm(depth~gageHm, data=DRC)
+depth.lm<- glm(gageHm~(depth), data=DRC)
 summary(depth.lm)
 
 #BWC_Q1$depth <- calc_depth(Q=u(BWC_Q1$discharge, "m^3 s^-1"), f=u(0.36))
-DRC$est.depth<- ((DRC$gageHm) * summary(depth.lm)$coef[2,1])
+DRC$est.depth <- ((DRC$gageHm) * summary(depth.lm)$coef[2,1])
 hist(DRC$est.depth) 
+
+hist(DRC$gageHm)
+hist(DRC$depth) 
+
 
 dat$depth <- ((dat$gageHF * 0.3048) * summary(depth.lm)$coef[2,1])
 
@@ -84,12 +94,16 @@ dat$light_cal<- calc_light(
 
 hist(dat$light_cal)
 
-dat$light_st <- c(dat$par*2.114)
+dat$light_st <- c(dat$light*2.114)
 hist(dat$light_st)
 
+# Raise the conductivity (in mS/cm) to the power 1.0878. 
+# Multiply the result by 0.4665. 
+# This gives you salinity in grams (of salt) per liter (of solution)
+
 dat$DO.sat <- calc_DO_sat(dat$wtr, 
-                          dat$pressure_millibar,
-                          sal=0) 
+                          dat$baro,
+                          sal=10.5635) 
 hist(dat$DO.sat)
 
 
@@ -98,17 +112,27 @@ names(dat)
 
 colnames(dat)[3] <- "temp.water"
 colnames(dat)[2] <- "DO.obs"
-colnames(dat)[13] <- "light"
+colnames(dat)[12] <- "light"
 
 
 # New named df
 mdat <- subset(dat, select= c(datetime, solar.time, DO.obs, DO.sat, depth, temp.water, light, discharge))
-# write.csv(x = mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/22_GBL_modelInputs.csv", row.names = TRUE)
+# write.csv(x = mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs.csv", row.names = TRUE)
 
 
-qplot(datetime, discharge , data = dat, geom="point") +
+qplot(datetime, discharge , data = mdat, geom="point") +
   theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
   scale_x_datetime(breaks = date_breaks("500 hours"))
+
+
+
+
+
+
+
+
+
+
 
 
 ## DO -- subset to time frame of interest & plot
@@ -121,7 +145,7 @@ vis_data_DO <- function(x){
   x <- subset(x, x$datetime < "2022-10-02 00:00:00")
   
   # Then you can create the xts format, and thus use dygraph
-  dat <- xts(x = x$DO.obs, order.by = x$datetime)
+  dat <- xts(x = x$DO.sat, order.by = x$datetime)
   
   # Make the chart
   p <- dygraph(dat)
@@ -201,31 +225,20 @@ qplot(datetime, discharge , data = datS22, geom="point") +
 ###
 ##
 
-### 2021
-##
+dat<- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/23_GBUInputs.csv")
+summary(dat)
+str(dat)
 
-dat21<- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/CleanDat/21_GBUInputs.csv")
-summary(dat21)
-str(dat21)
-
-dat22<- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/CleanDat/22_GBUInputs.csv")
-summary(dat22)
-str(dat22)
-
-dat21<-rbind(dat21,dat22)
-
-
-
-dat21 <- dat21 %>%
-  mutate(datetime = as.POSIXct((datetime), format ="%Y-%m-%d %H:%M:%S"))%>%
-  select("datetime","do.obs", "wtr","par", "baro", "dischargeCFS", "gageHF")
+dat <- dat %>%
+  mutate(datetime = as.POSIXct((datetime), format ="%Y-%m-%dT%H:%M:%SZ"),tz = "UTC")%>%
+  dplyr::select("datetime","do.obs", "wtr","par", "baro", "dischargeCFS", "gageHF")
 
 
 # get all units in model form #
-dat21$pressure_millibar <- c(dat21$baro * 0.01)
-dat21$dischargeR <- c(dat21$dischargeCFS *  35.3147)
+dat$pressure_millibar <- c(dat$baro * 0.01)
+dat$dischargeR <- c(dat$dischargeCFS *  35.3147)
 
-vis_data_flow(dat21)
+#vis_data_flow(dat21)
 
 ###
 ## Depth rating curve: 
@@ -235,16 +248,17 @@ date<- as.POSIXct(c("2021-03-25 13:00:00",
                     "2022-04-07 13:00:00",
                     "2021-07-22 13:00:00",
                     "2022-06-22 13:00:00",
-                    "2022-10-02 13:00:00"), 
+                    "2022-10-02 13:00:00",
+                    "2023-03-27 13:00:00"), 
                   tz="America/Los_Angeles",
                   format = c("%Y-%m-%d %H:%M:%OS"))
 
-depth <- c(0.126, 0.117, NA, 0.098, 0.159, 0.067)
-flow <- c(NA, NA, 48.634, 4.968, 54.630, 4.909)
+depth <- c(0.126, 0.117, NA, 0.098, 0.159, 0.067, 0.123)
+flow <- c(NA, NA, 48.634, 4.968, 54.630, 4.909, 42.03)
 
 mophDF <- data.frame(date,depth, flow)
 
-DRC <- left_join(dat21, mophDF[c("date", "depth", "flow")],
+DRC <- left_join(dat, mophDF[c("date", "depth", "flow")],
                  by = c("datetime" = "date"))
 summary(DRC)
 DRC$gageHm <-c(DRC$gageHF *0.3048)
@@ -259,55 +273,61 @@ summary(flow.lm)
 DRC$est.depth<- ((DRC$gageHm) * summary(depth.lm)$coef[2,1])
 hist(DRC$est.depth) 
 
-dat21$depth <- ((dat21$gageHF * 0.3048) * summary(depth.lm)$coef[2,1])
+dat$depth <- ((dat$gageHF * 0.3048) * summary(depth.lm)$coef[2,1])
+hist(dat$depth)
 
-DRC$est.flow<- ((DRC$dischargeR) * summary(flow.lm)$coef[2,1])
+DRC$est.flow<- ((DRC$dischargeR) * summary(flow.lm)$coef[2,1]) * (-1)
 hist(DRC$est.flow) 
 
-dat21$discharge.est <- ((dat21$dischargeR) * summary(flow.lm)$coef[2,1])
-hist(dat21$discharge.est) 
+dat$discharge.est <- ((dat$dischargeR) * summary(flow.lm)$coef[2,1]) * (-1)
+hist(dat$discharge.est) 
 
 # calc light example
 latitude <- c(39.10740708)
 longitude <- c(-120.16213517)
 
-dat21$solar.time <- calc_solar_time(dat21$datetime, longitude)
+dat$solar.time <- calc_solar_time(dat$datetime, longitude)
 
 ## SM light ##
-dat21$light_cal<- calc_light(
-  dat21$solar.time,
+dat$light_cal<- calc_light(
+  dat$solar.time,
   latitude,
   longitude,
   max.PAR = u(2326, "umol m^-2 s^-1"),
-  attach.units = is.unitted(dat21$solar.time)
+  attach.units = is.unitted(dat$solar.time)
 )
 
-hist(dat21$light_cal)
+hist(dat$light_cal)
 
-dat21$light_st <- c(dat21$par*2.114)
-hist(dat21$light_st)
+dat$light_st <- c(dat$par*2.114)
+hist(dat$light_st)
 
-dat21$DO.sat <- calc_DO_sat(dat21$wtr, 
-                            dat21$pressure_millibar,
-                            sal=0) 
-hist(dat21$DO.sat)
+qplot(datetime, light_st, data = dat, geom="point") +
+  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
+  scale_x_datetime(breaks = date_breaks("1000 hours"))
+
+
+dat$DO.sat <- calc_DO_sat(dat$wtr, 
+                            dat$pressure_millibar,
+                            sal=6) 
+hist(dat$DO.sat)
 
 
 # Get data in correct name and column form
-names(dat21)
+names(dat)
 
-colnames(dat21)[3] <- "temp.water"
-colnames(dat21)[2] <- "DO.obs"
-colnames(dat21)[14] <- "light"
-colnames(dat21)[11] <- "discharge"
+colnames(dat)[3] <- "temp.water"
+colnames(dat)[2] <- "DO.obs"
+colnames(dat)[14] <- "light"
+colnames(dat)[11] <- "discharge"
 
 
 # New named df
-mdat <- subset(dat21, select= c(datetime, solar.time, DO.obs, DO.sat, depth, temp.water, light, discharge))
-# write.csv(x = mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/21_GBU_modelInputs.csv", row.names = TRUE)
+mdat <- subset(dat, select= c(datetime, solar.time, DO.obs, DO.sat, depth, temp.water, light, discharge))
+# write.csv(x = mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/23_GBU_modelInputs.csv", row.names = TRUE)
 
 
-
+range(mdat$datetime)
 
 vis_data_DO <- function(x){
   

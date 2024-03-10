@@ -1,4 +1,5 @@
 # single stage
+# 2021-10-22
 
 ## ---------------------------
 rm(list=ls())
@@ -27,9 +28,7 @@ library(StanHeaders)
 ## Read in DO data from miniDOT deployments 03/25-10/01
 ##
 
-getwd()
-
-dat <- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_BWLmodelInputs.csv")
+dat <- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/23_GBU_modelInputs.csv")
 summary(dat)
 
 
@@ -37,8 +36,6 @@ dat$solar.time <- as.POSIXct(dat$datetime,
                              format = "%Y-%m-%dT%H:%M:%SZ",
                              tz = "UTC")
 
-## Check for NAs in time series
-str(dat)
 ## Check for NAs in time series
 which(is.na(dat$solar.time)) 
 
@@ -51,21 +48,19 @@ dat <- dat[,c("solar.time","DO.obs","DO.sat","depth","temp.water","light","disch
 
 # originally for the 18th 
 
-# 
-short <- subset(dat, solar.time > "2023-07-22 00:00:00" & solar.time < "2023-07-27 20:00:00")
-
+short <- subset(dat, solar.time >= "2022-07-15 17:00:00" & solar.time <= "2022-07-20 20:00:00")
 
 # Check timestamp format with light or temp
-qplot(solar.time,  temp.water, data = short, geom="point") +
+qplot(solar.time,  light, data = short, geom="point") +
   theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
   scale_x_datetime(labels = date_format("%m/%d %H:%M"),
-                   breaks = date_breaks("12 hours"))
+                   breaks = date_breaks("4 hours"))
 
 
 #####################################################
 #Visualize the data    
 #####################################################
-# dat <- short
+dat <- short
 
 dat %>% unitted::v() %>%
   mutate(DO.pctsat = 100 * (DO.obs / DO.sat)) %>%
@@ -112,11 +107,9 @@ aggregate_to_15_minutes <- function(data) {
 
 aggregated_dat <- aggregate_to_15_minutes(dat)
 
-#####
-# mm <- metab(specs(mm_name('mle')), data=aggregated_dat, info='my info')
-# predict_metab(mm)
-
-
+#####################################################
+## Model the data 
+#####################################################
 ## Figure out range of log of daily discharge and reset parameters accordingly
 
 ## Set bayes specs
@@ -129,46 +122,30 @@ hist(log(dat$discharge))
 sd(log(dat$discharge))
 
 
-
-#bayes_specs_new$K600_lnQ_nodes_centers <- c(2, 4, 4, 5.5, 6, 7, 8, 9)
-bayes_specs_new$K600_daily_sigma_sigma <- 0.05
-bayes_specs_new$GPP_daily_lower <- c(0)
-bayes_specs_new$ER_daily_upper <- c(0)
+#bayes_specs_new$K600_lnQ_nodes_centers <- c(-0.8, 0, 0.4, 0.9, 1.9, 2.8, 3.5, 4)
 ## Based on Pete Raymond's data for small headwater streams
 ## (might leave at default values but make sure to adjust number of nodes)
-#bayes_specs_new$K600_lnQ_nodes_meanlog <- c(rep(5.5, 6))
+#bayes_specs_new$K600_lnQ_nodes_meanlog <- c(rep(1.5, 6))
 #bayes_specs_new$K600_lnQ_nodes_sdlog <- c(rep(1.6, 6))
 ## Change sigma if need to constrain var
+#bayes_specs_new$K600_daily_sigma_sigma <- 0.05
 
-
-
+#summary(aggregated_dat)
 ## Run streamMetabolizer
-## Change object name to avoid overwriting
-# aggregated_dat<- na.omit(aggregated_dat)
+#aggregated_dat<- na.omit(aggregated_dat)
 
 
-## Try to get even data:
-dat2 <- dat %>%
-  mutate(date_only = as.Date(solar.time)) %>%
-  group_by(date_only) %>%
-  filter(n() == 96) %>%  # Assuming 96 observations per day for 15-minute intervals
-  select(-date_only)
+dat_metab_GB <- metab(bayes_specs_new, data=dat)
+dat_fit_GB <- get_fit(dat_metab_GB)
 
 
-dat3 <-  dat2[,c(-1)]
-
-dat_metab_BW <- metab(bayes_specs_new, data=dat3)
-
-dat_fit_BW <- get_fit(dat_metab_BW)
 
 ## Visualize
-DOplot <-plot_DO_preds(predict_DO(dat_metab_BW))
-# ggsave(plot = DOplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/plot_DO_preds_BWL23_test.png",sep=""),width=5,height=4,dpi=300)
+DOplot <-plot_DO_preds(predict_DO(dat_metab_GB))
+# ggsave(plot = DOplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/plot_DO_preds_GBL21_test.png",sep=""),width=5,height=4,dpi=300)
 
-metabplot<- plot_metab_preds(predict_metab(dat_metab_BW))
-# ggsave(plot = metabplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/metabplot_BWL23_test.png",sep=""),width=5,height=4,dpi=300)
-
-
+metabplot<- plot_metab_preds(predict_metab(dat_metab_GB))
+# ggsave(plot = metabplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/metabplot_GBL21_test.png",sep=""),width=5,height=4,dpi=300)
 
 
 ## Check binning
@@ -198,31 +175,26 @@ Binning <- function(fit_Site, Site){
     theme(legend.position = "top")
 }
 
-binplot<- Binning(dat_fit_BW, dat_metab_BW)
-# ggsave(plot = binplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/binplot_BWL23_test.png",sep=""),width=5,height=4,dpi=300)
+binplot<- Binning(dat_fit_GB, dat_metab_GB)
+# ggsave(plot = binplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/binplot_GBL21_test.png",sep=""),width=5,height=4,dpi=300)
 
-get_fit(dat_metab_BW)$overall %>%
+get_fit(dat_metab_GB)$overall %>%
   dplyr::select(ends_with('Rhat')) # might be best rhat 
 
 
 ## Save info
-
-## Save info
-writefiles <- function(data, data2, path = "./24_output/") {
+writefiles <- function(data, data2){
   for (i in seq_along(data)) {
-    filename = paste(path,site,"_",names(data)[i], ".csv", sep = "")
+    filename = paste(names(data)[i], ".csv")
     write.csv(data[[i]], filename)
   }
-  
-  write.csv(unlist(get_specs(data2)), paste(path,site,"_","specs.csv", sep = ""))
-  write.csv(get_data_daily(data2), paste(path,site,"_","datadaily.csv", sep = ""))
-  write.csv(get_data(data2), paste(path,site,"_","mod_and_obs_DO.csv", sep = ""))
+  write.csv(unlist(get_specs(data2)),"specs.csv")
+  write.csv(get_data_daily(data2), "datadaily.csv")
+  write.csv(get_data(data2),"mod_and_obs_DO.csv")
 }
 
-site <- "BWL"
+
 getwd()
 ## Create new folder for site and write csv info
 writefiles(dat_fit_BW, dat_metab_BW)
 
-
-#saveRDS(k, file = "GEN_PreClean.rds")
