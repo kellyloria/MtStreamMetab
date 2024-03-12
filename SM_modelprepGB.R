@@ -26,7 +26,7 @@ dat <- dat %>%
 str(dat)
 
 # get all units in model form #
-dat$discharge <- c(dat$dischargeCFS *  28.317) # did you need to cuber the flow
+dat$discharge <- c(dat$dischargeCFS *  0.028317) # did you need to cube the flow
 
 ###
 ## Depth rating curve: 
@@ -45,15 +45,15 @@ date<- as.POSIXct(c("2022-01-21 17:00:00",
                   tz="America/Los_Angeles",
                   format = c("%Y-%m-%d %H:%M:%OS"))
 
-depth <- c(0.1437662, 
+depth <- c(0.144, 
            0.130,
-           0.2220309,
-           0.1529198, 
-           0.368,
-           0.09045016,
-           0.066, 
+           0.191,
+           0.153, 
+           0.191,
+           0.091,
+           0.106, 
            0.142, 
-           0.267,
+           0.243,
            0.166)
 
 mophDF <- data.frame(date,depth)
@@ -66,6 +66,8 @@ DRC$gageHm <-c(DRC$gageHF *0.3048)
 # regression between reach depth and gage height
 depth.lm<- glm(gageHm~(depth), data=DRC)
 summary(depth.lm)
+
+plot(DRC$depth~ DRC$gageHm)
 
 #BWC_Q1$depth <- calc_depth(Q=u(BWC_Q1$discharge, "m^3 s^-1"), f=u(0.36))
 DRC$est.depth <- ((DRC$gageHm) * summary(depth.lm)$coef[2,1])
@@ -119,7 +121,11 @@ colnames(dat)[12] <- "light"
 mdat <- subset(dat, select= c(datetime, solar.time, DO.obs, DO.sat, depth, temp.water, light, discharge))
 # write.csv(x = mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs.csv", row.names = TRUE)
 
+# saveRDS(mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs.rds")
 
+
+
+library(scales)
 qplot(datetime, discharge , data = mdat, geom="point") +
   theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
   scale_x_datetime(breaks = date_breaks("500 hours"))
@@ -184,7 +190,7 @@ vis_data_flow(Dec2021)
 
 
 # 2022-06-01 to 2022-10-01
-
+library(ggplot2)
 datS22<- subset(dat, datetime > '2022-07-01 00:00:00' & datetime < '2022-10-01 :00:00')
 
 qplot(datetime, discharge , data = datS22, geom="point") +

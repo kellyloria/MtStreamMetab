@@ -1,5 +1,5 @@
 # single stage
-# 2021-10-22
+# 2024-03-12
 
 ## ---------------------------
 rm(list=ls())
@@ -30,13 +30,8 @@ library(StanHeaders)
 
 
 site <- "GBL"
-dat <- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs.csv")
+dat <- readRDS("/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs.rds")
 summary(dat)
-
-
-dat$solar.time <- as.POSIXct(dat$datetime,
-                             format = "%Y-%m-%dT%H:%M:%SZ",
-                             tz = "UTC")
 
 ## Check for NAs in time series
 which(is.na(dat$solar.time)) 
@@ -64,7 +59,7 @@ qplot(solar.time,  light, data = short, geom="point") +
 #####################################################
 # dat <- short
 
-dat <- dat2
+# dat <- dat2
 
 dat %>% unitted::v() %>%
   mutate(DO.pctsat = 100 * (DO.obs / DO.sat)) %>%
@@ -95,7 +90,6 @@ dat2 <- dat %>%
   filter(n() == 96) %>%  # Assuming 96 observations per day for 15-minute intervals
   select(-date_only)
 
-# 
 # #####################################################
 # ## Model the data 
 # #####################################################
@@ -129,16 +123,16 @@ dat2 <- dat %>%
 bayes_name_new <- mm_name(type='bayes', pool_K600="binned", err_obs_iid=TRUE, err_proc_iid = TRUE, ode_method = "trapezoid", deficit_src='DO_mod', engine='stan')
 bayes_specs_new <- specs(bayes_name_new)
 ## Based on range of log daily Q (readjust based on range of your discharge, but then remember to reset number of nodes_meanlog and sdlog)
-mean(log(dat$discharge))
-range(log(dat$discharge))
-hist(log(dat$discharge))
-sd(log(dat$discharge))
+mean(log(dat2$discharge))
+range(log(dat2$discharge))
+hist(log(dat2$discharge))
+sd(log(dat2$discharge))
 
 
-bayes_specs_new$K600_lnQ_nodes_centers <- c(-1, 0, 1, 2, 3, 4, 5, 6)
+bayes_specs_new$K600_lnQ_nodes_centers <- c(-6, -5, -4, -3, -2, -1, 0, 1)
 ## Based on Pete Raymond's data for small headwater streams
 ## (might leave at default values but make sure to adjust number of nodes)
-bayes_specs_new$K600_lnQ_nodes_meanlog <- c(rep(2.5, 6))
+bayes_specs_new$K600_lnQ_nodes_meanlog <- c(rep(1.4, 6))
 #bayes_specs_new$K600_lnQ_nodes_sdlog <- c(rep(1.6, 6))
 ## Change sigma if need to constrain var
 bayes_specs_new$K600_daily_sigma_sigma <- 0.05
@@ -165,19 +159,17 @@ bayes_specs_new$ER_daily_upper <- c(0)
 # dat4 <- aggregated_dat %>%
 #   filter(solar.time > as.POSIXct("2021-05-10 00:00:00"))
 
-
-dat3 <-  dat[,c(-1)]
+# run model 
+dat3 <-  dat2[,c(-1)]
 dat_metab_GB <- metab(bayes_specs_new, data=dat3)
 dat_fit_GB <- get_fit(dat_metab_GB)
 
-
-
 ## Visualize
 DOplot <-plot_DO_preds(predict_DO(dat_metab_GB))
-# ggsave(plot = DOplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/plot_DO_preds_GBL21_test.png",sep=""),width=5,height=4,dpi=300)
+# ggsave(plot = DOplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/plot_DO_preds_GBL1.png",sep=""),width=5,height=4,dpi=300)
 
 metabplot<- plot_metab_preds(predict_metab(dat_metab_GB))
-# ggsave(plot = metabplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/metabplot_GBL21_test.png",sep=""),width=5,height=4,dpi=300)
+# ggsave(plot = metabplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/metabplot_GBL1.png",sep=""),width=5,height=4,dpi=300)
 
 
 ## Check binning
@@ -208,7 +200,7 @@ Binning <- function(fit_Site, Site){
 }
 
 binplot<- Binning(dat_fit_GB, dat_metab_GB)
-# ggsave(plot = binplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/binplot_GBL_24.png",sep=""),width=5,height=4,dpi=300)
+# ggsave(plot = binplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/binplot_GBL1.png",sep=""),width=5,height=4,dpi=300)
 
 get_fit(dat_metab_GB)$overall %>%
   dplyr::select(ends_with('Rhat')) # might be best rhat 
@@ -219,17 +211,54 @@ get_fit(dat_metab_GB)$overall %>%
 getwd()
 
 ## Save info
-writefiles <- function(data, data2, path = "./24_output/") {
+writefiles <- function(data, data2, path = "/Users/kellyloria/Documents/UNR/MSMmetab/24_output/") {
   for (i in seq_along(data)) {
-    filename = paste(path,site,"_",names(data)[i], ".csv", sep = "")
+    filename = paste(path,site,"_",names(data)[i], "_GBL1.csv", sep = "")
     write.csv(data[[i]], filename)
   }
   
-  write.csv(unlist(get_specs(data2)), paste(path,site,"_","specs.csv", sep = ""))
-  write.csv(get_data_daily(data2), paste(path,site,"_","datadaily.csv", sep = ""))
-  write.csv(get_data(data2), paste(path,site,"_","mod_and_obs_DO.csv", sep = ""))
+  write.csv(unlist(get_specs(data2)), paste(path,site,"_","specs_GBL1.csv", sep = ""))
+  write.csv(get_data_daily(data2), paste(path,site,"_","datadaily_GBL1.csv", sep = ""))
+  write.csv(get_data(data2), paste(path,site,"_","mod_and_obs_DO_GBL1.csv", sep = ""))
 }
 
 ## Create new folder for site and write csv info
 writefiles(dat_fit_GB, dat_metab_GB)
 
+# plot for k600
+GBL <- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/24_output/GBL_daily_GBL1.csv")
+GBL$date <- as.Date(GBL$date, origin="2021-01-01")
+GBL$site <- "GBL"
+GBL$shore <- "east"
+
+Odd_plot <- ggplot(GBL, aes(x = K600_daily_mean, color = shore, fill = shore)) +
+  geom_histogram(aes(y = ..density..), position = "identity", alpha = 0.5, bins = 15) +
+  scale_fill_manual(values = alpha(c("#a67d17"), 0.2)) +
+  scale_color_manual(values = alpha(c("#a67d17"), 0.9)) + theme_bw() + 
+  geom_vline(data = GBL, aes(xintercept = mean(na.omit(K600_daily_mean))), linetype = "dashed") 
+
+Gplot_sp <- ggplot(GBL, aes(x = K600_daily_mean, y = (ER_mean*-1))) +  
+  geom_point(shape= 17, col = alpha(c("#a67d17"),0.5)) +
+  geom_smooth(method ="lm", se=F)+  facet_grid(.~site)+
+  theme_bw()
+
+GB_lm <- lm(K600_daily_mean~(ER_mean*-1), data=GBL)
+summary(GB_lm)
+
+# Extract R-squared value
+r_gsquared <- summary(GB_lm)$r.squared
+GB_plot <- Gplot_sp + 
+  geom_text(aes(x = max((GBL$K600_daily_mean), na.rm=T), y = min((GBL$ER_mean*-1), na.rm=T), 
+                label = paste("R-squared =", round(r_gsquared, 2))),
+            hjust = 1, vjust = 0, size = 4, col = "blue",
+            parse = T, check_overlap = T, na.rm = T)
+library(ggpubr)
+
+k_grid <- ggarrange(GB_plot,
+                    Odd_plot,
+                    ncol = 2, nrow = 1,
+                    common.legend = TRUE, 
+                    legend = "bottom",
+                    widths = c(0.6, 0.4))
+
+#ggsave(plot = k_grid, filename = paste("./figures/24_streamMetab_k_GBL1.png",sep=""),width=6,height=3,dpi=300)

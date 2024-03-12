@@ -1,3 +1,31 @@
+#' Aggregates and cleans miniDOT data for eventual littoral metabolism modeling 
+#' @description brings in climate data from NLDAS, light data from sensors and attenuation data from TERC
+#'
+#' @return Returns .csvs named by site for calculating metab fxns in "LM_modelprep" 
+#' @export 
+
+##===============================================================================
+## Created  01/31/2024 by KAL
+## look to https://github.com/nrlottig/nrlmetab for help with metab fxns
+#===============================================================================
+
+## KAL's temporary path reminders: 
+## setwd("/Users/kellyloria/Documents/LittoralMetabModeling")
+## PC: setwd("R:/Users/kloria/Documents/LittoralMetabModeling")
+
+# install.packages("remotes")
+# remotes::install_github("nrlottig/nrlmetab")
+
+lapply(c("plyr","dplyr","ggplot2","cowplot","lubridate",
+         "tidyverse","data.table","xts","dygraphs",
+         "nrlmetab","cowplot"), require, character.only=T)
+
+source("./Littoral-Lake-Metabolism/saved_fxns/LM.o2.at.sat.R")
+source("./Littoral-Lake-Metabolism/saved_fxns/LM.wind.scale.R")
+
+
+
+
 # Glenbrook stream DO agg
 
 #=========== Preliminaries
