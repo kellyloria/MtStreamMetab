@@ -27,10 +27,10 @@ library(StanHeaders)
 ## ---------------------------
 ## Read in DO data from miniDOT deployments 03/25-10/01
 ##
-
+# PC path  setwd("R:/Users/kloria/Documents/2023_StreamMetab")
 
 site <- "GBL"
-dat <- readRDS("/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs.rds")
+dat <- readRDS("./FinalInputs/24_GBL_modelInputs.rds")
 summary(dat)
 
 ## Check for NAs in time series
@@ -129,7 +129,7 @@ hist(log(dat2$discharge))
 sd(log(dat2$discharge))
 
 
-bayes_specs_new$K600_lnQ_nodes_centers <- c(-6, -5, -4, -3, -2, -1, 0, 1)
+bayes_specs_new$K600_lnQ_nodes_centers <- c(-7, -6, -5, -4, -3, -2, -1, 0)
 ## Based on Pete Raymond's data for small headwater streams
 ## (might leave at default values but make sure to adjust number of nodes)
 bayes_specs_new$K600_lnQ_nodes_meanlog <- c(rep(1.4, 6))
@@ -138,6 +138,13 @@ bayes_specs_new$K600_lnQ_nodes_meanlog <- c(rep(1.4, 6))
 bayes_specs_new$K600_daily_sigma_sigma <- 0.05
 bayes_specs_new$GPP_daily_lower <- c(0)
 bayes_specs_new$ER_daily_upper <- c(0)
+
+# added stuff
+bayes_specs_new$n_chains <- c(6)
+bayes_specs_new$n_cores <- c(6)
+bayes_specs_new$burnin_steps <- c(2500)
+bayes_specs_new$saved_steps <- c(2500)
+
 
 #summary(aggregated_dat)
 ## Run streamMetabolizer
@@ -166,10 +173,10 @@ dat_fit_GB <- get_fit(dat_metab_GB)
 
 ## Visualize
 DOplot <-plot_DO_preds(predict_DO(dat_metab_GB))
-# ggsave(plot = DOplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/plot_DO_preds_GBL1.png",sep=""),width=5,height=4,dpi=300)
+# ggsave(plot = DOplot, filename = paste("./MtStreamMetab/Figures/diagnostic/plot_DO_preds_GBL2.png",sep=""),width=5,height=4,dpi=300)
 
 metabplot<- plot_metab_preds(predict_metab(dat_metab_GB))
-# ggsave(plot = metabplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/metabplot_GBL1.png",sep=""),width=5,height=4,dpi=300)
+# ggsave(plot = metabplot, filename = paste("./MtStreamMetab/Figures/diagnostic/metabplot_GBL2.png",sep=""),width=5,height=4,dpi=300)
 
 
 ## Check binning
@@ -200,33 +207,33 @@ Binning <- function(fit_Site, Site){
 }
 
 binplot<- Binning(dat_fit_GB, dat_metab_GB)
-# ggsave(plot = binplot, filename = paste("/Users/kellyloria/Documents/UNR/MSMmetab/MtStreamMetab/Figures/diagnostic/binplot_GBL1.png",sep=""),width=5,height=4,dpi=300)
+# ggsave(plot = binplot, filename = paste("./MtStreamMetab/Figures/diagnostic/binplot_GBL2.png",sep=""),width=5,height=4,dpi=300)
 
 get_fit(dat_metab_GB)$overall %>%
   dplyr::select(ends_with('Rhat')) # might be best rhat 
-# 1.96
+# 1.75
 
 
 ## Save info
 getwd()
 
 ## Save info
-writefiles <- function(data, data2, path = "/Users/kellyloria/Documents/UNR/MSMmetab/24_output/") {
+writefiles <- function(data, data2, path = "./24_output/") {
   for (i in seq_along(data)) {
-    filename = paste(path,site,"_",names(data)[i], "_GBL1.csv", sep = "")
+    filename = paste(path,site,"_",names(data)[i], "_GBL2.csv", sep = "")
     write.csv(data[[i]], filename)
   }
   
-  write.csv(unlist(get_specs(data2)), paste(path,site,"_","specs_GBL1.csv", sep = ""))
-  write.csv(get_data_daily(data2), paste(path,site,"_","datadaily_GBL1.csv", sep = ""))
-  write.csv(get_data(data2), paste(path,site,"_","mod_and_obs_DO_GBL1.csv", sep = ""))
+  write.csv(unlist(get_specs(data2)), paste(path,site,"_","specs_GBL2.csv", sep = ""))
+  write.csv(get_data_daily(data2), paste(path,site,"_","datadaily_GBL2.csv", sep = ""))
+  write.csv(get_data(data2), paste(path,site,"_","mod_and_obs_DO_GBL2.csv", sep = ""))
 }
 
 ## Create new folder for site and write csv info
 writefiles(dat_fit_GB, dat_metab_GB)
 
 # plot for k600
-GBL <- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/24_output/GBL_daily_GBL1.csv")
+GBL <- read.csv("./24_output/GBL_daily_GBL2.csv")
 GBL$date <- as.Date(GBL$date, origin="2021-01-01")
 GBL$site <- "GBL"
 GBL$shore <- "east"
@@ -261,4 +268,4 @@ k_grid <- ggarrange(GB_plot,
                     legend = "bottom",
                     widths = c(0.6, 0.4))
 
-#ggsave(plot = k_grid, filename = paste("./figures/24_streamMetab_k_GBL1.png",sep=""),width=6,height=3,dpi=300)
+#ggsave(plot = k_grid, filename = paste("./figures/24_streamMetab_k_GBL2.png",sep=""),width=6,height=3,dpi=300)
