@@ -194,18 +194,27 @@ qplot(datetime, light, data = dat_Q3, geom="point") +
   theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
   scale_x_datetime(breaks = date_breaks("1000 hours"))
 
+
+qplot(datetime, dischargeCFS, data = dat_Q3, geom="point") +
+  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
+  scale_x_datetime(breaks = date_breaks("1000 hours"))
+
+
 dat <- dat_Q3 %>%
   dplyr::select(site,
                 datetime,
                 do.obs,
                 wtr,
                 light, 
-                baro_Pa,
+                baro,
                 dischargeCFS,
                 gageHF) #
 
 
-# write.csv(x = dat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWLInputs.csv", row.names = TRUE)
+## write.csv(x = dat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWLInputs.csv", row.names = TRUE)
+
+# saveRDS(dat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWL_FinalInputs.rds")
+
 
 
 

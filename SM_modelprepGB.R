@@ -124,6 +124,11 @@ mdat <- subset(dat, select= c(datetime, solar.time, DO.obs, DO.sat, depth, temp.
 # saveRDS(mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs.rds")
 
 
+#####
+#####
+#####
+####
+
 
 library(scales)
 qplot(datetime, discharge , data = mdat, geom="point") +

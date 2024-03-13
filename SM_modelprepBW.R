@@ -23,19 +23,12 @@ library(dataRetrieval)
 # See what data you need:
 metab_inputs('bayes','data')
 
-dat<- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWLInputs.csv")
+dat<- readRDS("/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWL_FinalInputs.rds")
 summary(dat)
 str(dat)
 
-dat <- dat %>%
-  mutate(datetime = as_datetime(datetime, "America/Los_Angeles")) %>%
-  dplyr::select("datetime","do.obs", "wtr","light", "baro_Pa", "dischargeCFS", "gageHF")
-
-
 # get all units in model form #
-dat$pressure_millibar <- c(dat$baro_Pa * 0.01)
-dat$discharge <- c(dat$dischargeCFS *  28.317)
-
+dat$discharge <- c(dat$dischargeCFS *  0.028317) # did you need to cube the flow
 
 
 ###
@@ -55,7 +48,16 @@ date<- as.POSIXct(c(
                   tz="America/Los_Angeles",
                   format = c("%Y-%m-%d %H:%M:%OS"))
 
-depth <- c(0.153, 0.090, 0.228, 0.151, 0.096, 0.086, 0.294, 0.161, 0.588, 0.322)
+depth <- c(0.153, 
+           0.090, 
+           0.428, #
+           0.151, 
+           0.096, 
+           0.086, 
+           0.294, 
+           0.161, 
+           0.388, #
+           0.322)
 
 mophDF <- data.frame(date,depth)
 
@@ -68,6 +70,8 @@ DRC$gageHm <-c(DRC$gageHF *0.3048)
 depth.lm<- glm(gageHm~scale(depth), data=DRC)
 summary(depth.lm)
 
+plot(DRC$depth~ DRC$gageHm)
+
 #BWC_Q1$depth <- calc_depth(Q=u(BWC_Q1$discharge, "m^3 s^-1"), f=u(0.36))
 DRC$est.depth<- ((DRC$gageHm) * summary(depth.lm)$coef[2,1])
 hist(DRC$est.depth) 
@@ -75,7 +79,7 @@ hist(DRC$gageHm)
 hist(DRC$depth) 
 
 dat$depth <- ((dat$gageHF * 0.3048) * summary(depth.lm)$coef[2,1])
-
+hist(dat$depth) 
 # calc light example
 latitude <- c(39.10740708)
 longitude <- c(-120.16213517)
@@ -97,7 +101,7 @@ dat$light_st <- c(dat$light*2.114)
 hist(dat$light_st)
 
 dat$DO.sat <- calc_DO_sat(dat$wtr, 
-                          dat$pressure_millibar,
+                          dat$baro, #
                             sal=0) 
 hist(dat$DO.sat)
 
@@ -105,15 +109,22 @@ hist(dat$DO.sat)
 # Get data in correct name and column form
 names(dat)
 
-colnames(dat)[2] <- "DO.obs"
-colnames(dat)[3] <- "temp.water"
-colnames(dat)[12] <- "light"
+
+
+colnames(dat)[3] <- "DO.obs"
+colnames(dat)[4] <- "temp.water"
+colnames(dat)[13] <- "light"
 
 
 # New named df
-mdat <- subset(dat, select= c(datetime, solar.time, DO.obs, DO.sat, depth, temp.water, light, discharge))
+mdat <- subset(dat, select= c(solar.time, DO.obs, DO.sat, depth, temp.water, light, discharge))
 
 # write.csv(x = mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_BWLmodelInputs.csv", row.names = TRUE)
+
+# saveRDS(mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_BWL_modelInputs.rds")
+
+
+
 
 ##
 ###
