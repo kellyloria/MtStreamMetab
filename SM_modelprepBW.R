@@ -1,13 +1,5 @@
 rm(list=ls())
 
-# Load packages 
-# remotes::install_github('appling/unitted')
-
-# remotes::install_github(
-#   "USGS-R/streamMetabolizer", # soon to be "DOI-USGS/streamMetabolizer"
-#   build_vignettes = TRUE)
-
-
 library(unitted)
 library(StreamMetabolism)
 library(streamMetabolizer)
@@ -23,12 +15,13 @@ library(dataRetrieval)
 # See what data you need:
 metab_inputs('bayes','data')
 
-dat<- readRDS("/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWL_FinalInputs.rds")
+dat<- readRDS("/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWL_Inputs.rds")
 summary(dat)
 str(dat)
 
 # get all units in model form #
 dat$discharge <- c(dat$dischargeCFS *  0.028317) # did you need to cube the flow
+hist(dat$discharge)
 
 
 ###
@@ -123,6 +116,39 @@ mdat <- subset(dat, select= c(solar.time, DO.obs, DO.sat, depth, temp.water, lig
 
 # saveRDS(mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_BWL_modelInputs.rds")
 
+
+mdat_low <- mdat%>%
+  filter(discharge<0.79)
+hist(mdat_low$discharge)
+hist(mdat$discharge)
+
+# saveRDS(mdat_low, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs_lowflow.rds")
+
+
+#####
+#####
+#####
+####
+
+# start with Blackwood
+result <- mdat %>%
+  #group_by(Site) %>%
+  dplyr::summarize(
+    total_intervals = n(),
+    ranked_discharge = list(sort(discharge, decreasing = TRUE)),
+    exceedence_prob = list(seq(1, n(), length.out = n()) / n() * 100)
+  ) %>%
+  unnest(cols = c(ranked_discharge, exceedence_prob))
+
+# Plotting for each site
+result %>%
+  ggplot(aes(y = (ranked_discharge), x = exceedence_prob)) +
+  geom_line() + theme_bw() +
+  scale_color_manual(values=alpha(c("#3283a8"),0.5)) +
+  labs(y = "Discharge (cms/km)", x = "Exceedence Probability", title = "Exceedence Probability vs. Discharge by Site") 
+
+# 25% of flow exceeds 0.7872126 m3s 
+# 50% of flow exceeds 0.3539625 m3s
 
 
 

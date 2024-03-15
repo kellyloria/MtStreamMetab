@@ -145,7 +145,20 @@ light_datQ <- light_dat %>%
 dat2 <- do.ts.avg  %>% full_join(wtr.ts.avg, by = "datetime")
 dat2$site <- "BWL"
 
-dat_Q <- dat2 %>%
+summary(dat2)
+# okay lets figure out these NA's 
+dat2t<- na.omit(dat2)
+summary(dat2t)
+
+qplot(datetime, do.obs, data = dat2t, geom="point") +
+  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
+  scale_x_datetime(breaks = date_breaks("1000 hours"))
+
+qplot(datetime, wtr, data = dat2t, geom="point") +
+  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
+  scale_x_datetime(breaks = date_breaks("1000 hours"))
+
+dat_Q <- dat2t %>%
   left_join(light_datQ, by = c("datetime", "site")) %>%
   left_join(baro_datQ, by = c("datetime", "site")) 
 
@@ -183,7 +196,7 @@ flow.ts <- BWflow %>%
 dat_Q2 <-  dat_Q1 %>%
   left_join(flow.ts, by = c("datetime")) 
 
-summary(dat_Q3)
+summary(dat_Q2)
 
 # infil missing values
 dat_Q3 <- dat_Q2 %>%
@@ -193,7 +206,6 @@ dat_Q3 <- dat_Q2 %>%
 qplot(datetime, light, data = dat_Q3, geom="point") +
   theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
   scale_x_datetime(breaks = date_breaks("1000 hours"))
-
 
 qplot(datetime, dischargeCFS, data = dat_Q3, geom="point") +
   theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
@@ -210,14 +222,18 @@ dat <- dat_Q3 %>%
                 dischargeCFS,
                 gageHF) #
 
-
+summary(dat)
 ## write.csv(x = dat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWLInputs.csv", row.names = TRUE)
 
-# saveRDS(dat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWL_FinalInputs.rds")
+# saveRDS(dat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_BWL_Inputs.rds")
 
 
 
-
+##
+##
+##
+#
+#######################
 ##
 ###
 #=========================

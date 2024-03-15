@@ -26,6 +26,7 @@ source("./Littoral-Lake-Metabolism/saved_fxns/LM.wind.scale.R")
 
 
 
+
 # Glenbrook stream DO agg
 
 #=========== Preliminaries
@@ -213,6 +214,13 @@ qplot(datetime, light, data = dat_Q3, geom="point") +
   theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
   scale_x_datetime(breaks = date_breaks("1000 hours"))
 
+
+qplot(datetime, dischargeCFS, data = dat_Q3, geom="point") +
+  theme(axis.text.x = element_text(angle = 25, vjust = 1.0, hjust = 1.0))+
+  scale_x_datetime(breaks = date_breaks("1000 hours"))
+
+
+
 names(dat_Q3)
 
 dat3 <- dat_Q3 %>%
@@ -228,6 +236,7 @@ dat3 <- dat_Q3 %>%
 
 # write.csv(x = dat3, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_GBLInputs.csv", row.names = TRUE)
 
+# saveRDS(dat3, file = "/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_GBLInputs.rds")
 
 
 

@@ -16,17 +16,13 @@ library(dataRetrieval)
 # See what data you need:
 metab_inputs('bayes','data')
 
-dat<- read.csv("/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_GBLInputs.csv")
+dat<- readRDS("/Users/kellyloria/Documents/UNR/MSMmetab/23_CleanDat/24_GBLInputs.rds")
 summary(dat)
-
-dat <- dat %>%
-  mutate(datetime = as_datetime(datetime, "America/Los_Angeles")) %>%
-  dplyr::select("datetime","do.obs", "wtr","light", "baro", "dischargeCFS", "gageHF")
-
 str(dat)
 
 # get all units in model form #
 dat$discharge <- c(dat$dischargeCFS *  0.028317) # did you need to cube the flow
+hist(dat$discharge)
 
 ###
 ## Depth rating curve: 
@@ -112,15 +108,14 @@ hist(dat$DO.sat)
 # Get data in correct name and column form
 names(dat)
 
-colnames(dat)[3] <- "temp.water"
-colnames(dat)[2] <- "DO.obs"
-colnames(dat)[12] <- "light"
+colnames(dat)[4] <- "temp.water"
+colnames(dat)[3] <- "DO.obs"
+colnames(dat)[13] <- "light"
 
 
 # New named df
 mdat <- subset(dat, select= c(datetime, solar.time, DO.obs, DO.sat, depth, temp.water, light, discharge))
 # write.csv(x = mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs.csv", row.names = TRUE)
-
 # saveRDS(mdat, file = "/Users/kellyloria/Documents/UNR/MSMmetab/FinalInputs/24_GBL_modelInputs.rds")
 
 
@@ -129,6 +124,29 @@ mdat <- subset(dat, select= c(datetime, solar.time, DO.obs, DO.sat, depth, temp.
 #####
 ####
 
+# start with Blackwood
+result <- mdat %>%
+  #group_by(Site) %>%
+  dplyr::summarize(
+    total_intervals = n(),
+    ranked_discharge = list(sort(discharge, decreasing = TRUE)),
+    exceedence_prob = list(seq(1, n(), length.out = n()) / n() * 100)
+  ) %>%
+  unnest(cols = c(ranked_discharge, exceedence_prob))
+
+# Plotting for each site
+result %>%
+  ggplot(aes(y = (ranked_discharge), x = exceedence_prob)) +
+  geom_line() + theme_bw() +
+  labs(y = "Discharge (cms/km)", x = "Exceedence Probability", title = "Exceedence Probability vs. Discharge by Site") 
+
+# 25% of flow exceeds 0.04021014 m3s 
+# 50% of flow exceeds 0.200 m3s 
+
+####
+####
+####
+####
 
 library(scales)
 qplot(datetime, discharge , data = mdat, geom="point") +
