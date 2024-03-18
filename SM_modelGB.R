@@ -18,6 +18,7 @@ library(lubridate)
 library(dataRetrieval)
 library(scales)
 library(StanHeaders)
+#library(tidyverse)
 
 #  install.packages("remotes")
 #  remotes::install_github("appling/unitted")
@@ -29,12 +30,20 @@ library(StanHeaders)
 ##
 # PC path  setwd("R:/Users/kloria/Documents/2023_StreamMetab")
 
-site <- "GBL"
+site <- "GBL_lowflow"
 dat <- readRDS("./FinalInputs/24_GBL_modelInputs.rds")
+summary(dat)
+
+## LOW FLOW >25% = 0.040
+##          >50% = 0.020
+dat <- dat %>%
+  filter(discharge<=0.040)
+
 summary(dat)
 
 ## Check for NAs in time series
 which(is.na(dat$solar.time)) 
+# max was 0.9741048  
 
 ## Compile Data
 metab_inputs('bayes', 'data')
@@ -53,13 +62,42 @@ qplot(solar.time,  light, data = short, geom="point") +
   scale_x_datetime(labels = date_format("%m/%d %H:%M"),
                    breaks = date_breaks("4 hours"))
 
+# Function to aggregate data to 15-minute intervals
+aggregate_to_15_minutes <- function(data) {
+  # Convert the 'solar.time' column to a POSIXct format
+  data$solar.time <- as.POSIXct(data$solar.time, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+
+  # Create a new column for 15-minute intervals
+  data$solar.time <- cut(data$solar.time, breaks = "15 min")
+
+  # Group by the 'interval' column and aggregate data within each interval
+  aggregated_data <- data %>%
+    group_by(solar.time) %>%
+    summarize_at(vars(DO.obs, DO.sat, depth, temp.water, light, discharge), mean, na.rm = TRUE)
+  # Convert 'interval' back to a POSIXct timestamp
+  aggregated_data$solar.time <- as.POSIXct(aggregated_data$solar.time, origin = "1970-01-01", tz = "UTC")
+
+
+  return(aggregated_data)
+}
+
+aggregated_dat <- aggregate_to_15_minutes(dat)
+
+
+dat2 <- aggregated_dat %>%
+  mutate(date_only = as.Date(solar.time)) %>%
+  group_by(date_only) %>%
+  filter(n() == 96) %>%  # Assuming 96 observations per day for 15-minute intervals
+  select(-date_only)
+
+dat3 <-  dat2[,c(-1)]
 
 #####################################################
 #Visualize the data    
 #####################################################
 # dat <- short
 
-# dat <- dat2
+ dat <- dat3
 
 dat %>% unitted::v() %>%
   mutate(DO.pctsat = 100 * (DO.obs / DO.sat)) %>%
@@ -83,36 +121,11 @@ dat %>% unitted::v() %>%
 
 str(dat)
 
-## Try to get even data:
-dat2 <- dat %>%
-  mutate(date_only = as.Date(solar.time)) %>%
-  group_by(date_only) %>%
-  filter(n() == 96) %>%  # Assuming 96 observations per day for 15-minute intervals
-  select(-date_only)
-
 # #####################################################
 # ## Model the data 
 # #####################################################
-# # Function to aggregate data to 15-minute intervals
-# aggregate_to_15_minutes <- function(data) {
-#   # Convert the 'solar.time' column to a POSIXct format
-#   data$solar.time <- as.POSIXct(data$solar.time, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
-#   
-#   # Create a new column for 15-minute intervals
-#   data$solar.time <- cut(data$solar.time, breaks = "15 min")
-#   
-#   # Group by the 'interval' column and aggregate data within each interval
-#   aggregated_data <- data %>%
-#     group_by(solar.time) %>%
-#     summarize_at(vars(DO.obs, DO.sat, depth, temp.water, light, discharge), mean, na.rm = TRUE)
-#   # Convert 'interval' back to a POSIXct timestamp
-#   aggregated_data$solar.time <- as.POSIXct(aggregated_data$solar.time, origin = "1970-01-01", tz = "UTC")
-#   
-#   
-#   return(aggregated_data)
-# }
-# 
-# aggregated_dat <- aggregate_to_15_minutes(dat)
+
+
 
 #####################################################
 ## Model the data 
@@ -123,16 +136,20 @@ dat2 <- dat %>%
 bayes_name_new <- mm_name(type='bayes', pool_K600="binned", err_obs_iid=TRUE, err_proc_iid = TRUE, ode_method = "trapezoid", deficit_src='DO_mod', engine='stan')
 bayes_specs_new <- specs(bayes_name_new)
 ## Based on range of log daily Q (readjust based on range of your discharge, but then remember to reset number of nodes_meanlog and sdlog)
-mean(log(dat2$discharge))
-range(log(dat2$discharge))
-hist(log(dat2$discharge))
-sd(log(dat2$discharge))
+mean(log(dat$discharge))
 
+range(log(dat$discharge))
+range((dat$discharge))
 
-bayes_specs_new$K600_lnQ_nodes_centers <- c(-7, -6, -5, -4, -3, -2, -1, 0)
+hist(log(dat$discharge))
+sd(log(dat$discharge))
+
+## YOU ARE HERE ##
+
+bayes_specs_new$K600_lnQ_nodes_centers <- c(-7, -6, -5.5, -5, -4.5, -4, -3.5, -3)
 ## Based on Pete Raymond's data for small headwater streams
 ## (might leave at default values but make sure to adjust number of nodes)
-bayes_specs_new$K600_lnQ_nodes_meanlog <- c(rep(1.4, 6))
+bayes_specs_new$K600_lnQ_nodes_meanlog <- c(rep(1.07, 6))
 #bayes_specs_new$K600_lnQ_nodes_sdlog <- c(rep(1.6, 6))
 ## Change sigma if need to constrain var
 bayes_specs_new$K600_daily_sigma_sigma <- 0.05
@@ -167,16 +184,17 @@ bayes_specs_new$saved_steps <- c(2500)
 #   filter(solar.time > as.POSIXct("2021-05-10 00:00:00"))
 
 # run model 
-dat3 <-  dat2[,c(-1)]
+
+
 dat_metab_GB <- metab(bayes_specs_new, data=dat3)
 dat_fit_GB <- get_fit(dat_metab_GB)
 
 ## Visualize
 DOplot <-plot_DO_preds(predict_DO(dat_metab_GB))
-# ggsave(plot = DOplot, filename = paste("./MtStreamMetab/Figures/diagnostic/plot_DO_preds_GBL2.png",sep=""),width=5,height=4,dpi=300)
+# ggsave(plot = DOplot, filename = paste("./MtStreamMetab/Figures/diagnostic/plot_DO_preds_GBL3.png",sep=""),width=5,height=4,dpi=300)
 
 metabplot<- plot_metab_preds(predict_metab(dat_metab_GB))
-# ggsave(plot = metabplot, filename = paste("./MtStreamMetab/Figures/diagnostic/metabplot_GBL2.png",sep=""),width=5,height=4,dpi=300)
+# ggsave(plot = metabplot, filename = paste("./MtStreamMetab/Figures/diagnostic/metabplot_GBL3.png",sep=""),width=5,height=4,dpi=300)
 
 
 ## Check binning
@@ -207,11 +225,11 @@ Binning <- function(fit_Site, Site){
 }
 
 binplot<- Binning(dat_fit_GB, dat_metab_GB)
-# ggsave(plot = binplot, filename = paste("./MtStreamMetab/Figures/diagnostic/binplot_GBL2.png",sep=""),width=5,height=4,dpi=300)
+# ggsave(plot = binplot, filename = paste("./MtStreamMetab/Figures/diagnostic/binplot_GBL3.png",sep=""),width=5,height=4,dpi=300)
 
 get_fit(dat_metab_GB)$overall %>%
   dplyr::select(ends_with('Rhat')) # might be best rhat 
-# 1.75
+
 
 
 ## Save info
@@ -220,20 +238,20 @@ getwd()
 ## Save info
 writefiles <- function(data, data2, path = "./24_output/") {
   for (i in seq_along(data)) {
-    filename = paste(path,site,"_",names(data)[i], "_GBL2.csv", sep = "")
+    filename = paste(path,site,"_",names(data)[i], "_GBL3.csv", sep = "")
     write.csv(data[[i]], filename)
   }
   
-  write.csv(unlist(get_specs(data2)), paste(path,site,"_","specs_GBL2.csv", sep = ""))
-  write.csv(get_data_daily(data2), paste(path,site,"_","datadaily_GBL2.csv", sep = ""))
-  write.csv(get_data(data2), paste(path,site,"_","mod_and_obs_DO_GBL2.csv", sep = ""))
+  write.csv(unlist(get_specs(data2)), paste(path,site,"_","specs_GBL3.csv", sep = ""))
+  write.csv(get_data_daily(data2), paste(path,site,"_","datadaily_GBL3.csv", sep = ""))
+  write.csv(get_data(data2), paste(path,site,"_","mod_and_obs_DO_GBL3.csv", sep = ""))
 }
 
 ## Create new folder for site and write csv info
 writefiles(dat_fit_GB, dat_metab_GB)
 
 # plot for k600
-GBL <- read.csv("./24_output/GBL_daily_GBL2.csv")
+GBL <- read.csv("./24_output/GBL_lowflow_daily_GBL3.csv")
 GBL$date <- as.Date(GBL$date, origin="2021-01-01")
 GBL$site <- "GBL"
 GBL$shore <- "east"
@@ -268,4 +286,4 @@ k_grid <- ggarrange(GB_plot,
                     legend = "bottom",
                     widths = c(0.6, 0.4))
 
-#ggsave(plot = k_grid, filename = paste("./figures/24_streamMetab_k_GBL2.png",sep=""),width=6,height=3,dpi=300)
+# ggsave(plot = k_grid, filename = paste("./figures/24_streamMetab_k_GBL3v.png",sep=""),width=6,height=3,dpi=300)
